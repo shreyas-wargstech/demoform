@@ -296,16 +296,21 @@ export const STEP_CONFIG = {
   "aadhar-verification": {
     id: "aadhar-verification",
     stepNumber: 5,
+    nextStep: "application-summary",
+  },
+  "application-summary": {
+    id: "application-summary",
+    stepNumber: 6,
     nextStep: "payment",
   },
   payment: {
     id: "payment",
-    stepNumber: 6,
+    stepNumber: 7,
     nextStep: "submit",
   },
   submit: {
     id: "submit",
-    stepNumber: 7,
+    stepNumber: 8,
     nextStep: null,
   },
 } as const;

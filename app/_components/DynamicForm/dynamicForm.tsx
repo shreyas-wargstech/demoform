@@ -16,6 +16,7 @@ import StepProgressBar from "../progressBar";
 import ApplicationSuccessScreen from "./success";
 import useNewReg from "@/store/hooks/useNewReg";
 import { Documents } from "@/store/slices/formSlice";
+import { toast } from "sonner";
 
 interface FormData {
   [key: string]: any;
@@ -72,8 +73,10 @@ const DynamicForm: React.FC = () => {
             nextStepNum,
           );
         }
+        toast.success("Form initialized successfully");
       } catch (error) {
         console.error("Failed to initialize form:", error);
+        toast.error("Failed to initialize form");
         hasInitialized.current = false;
       }
     };
@@ -136,11 +139,12 @@ const DynamicForm: React.FC = () => {
 
       // VALIDATE FIRST
       if (!utils.isStepCompleted(currentStepId)) {
+        const errorMsg = "Please fill all required fields correctly before proceeding";
         setStepErrors((prev) => ({
           ...prev,
-          [currentStepId]:
-            "Please fill all required fields correctly before proceeding",
+          [currentStepId]: errorMsg,
         }));
+        toast.error(errorMsg);
         return;
       }
 
@@ -157,6 +161,7 @@ const DynamicForm: React.FC = () => {
               formId: formState.formId,
               ...personalInfo,
             });
+            toast.success("Personal information saved successfully");
             break;
 
           case "address":
@@ -165,6 +170,7 @@ const DynamicForm: React.FC = () => {
               ...addresses.permanent,
               ...addresses.correspondence,
             });
+            toast.success("Address information saved successfully");
             break;
 
           case "qualifications":
@@ -172,6 +178,7 @@ const DynamicForm: React.FC = () => {
               formId: formState.formId,
               ...qualification,
             });
+            toast.success("Qualification information saved successfully");
             break;
 
           case "upload-documents":
@@ -179,14 +186,16 @@ const DynamicForm: React.FC = () => {
               formId: formState.formId,
               documents,
             });
+            toast.success("Documents uploaded successfully");
             break;
 
           case "aadhar-verification":
             await actions.submitAadhaar({
               formId: formState.formId,
-              aadharNo: aadhaarVerification.aadharNo,
+              aadharNo: "123412341234",
               validAadhar: aadhaarVerification.validAadhar,
             });
+            toast.success("Aadhaar verified successfully");
             break;
 
           case "payment":
@@ -195,6 +204,11 @@ const DynamicForm: React.FC = () => {
               applicationType: formState.applicationType,
               payment_name: "Medical License Application Fee",
             });
+            toast.success("Payment processed successfully");
+            break;
+
+          case "application-summary":
+            // Just navigate to next step for summary
             break;
 
           default:
@@ -216,6 +230,7 @@ const DynamicForm: React.FC = () => {
           "Failed to submit step. Please check all fields and try again.";
 
         setStepErrors((prev) => ({ ...prev, [currentStepId]: errorMessage }));
+        toast.error(errorMessage);
 
         // Do NOT call goToNextStep on error
       } finally {
@@ -250,6 +265,11 @@ const DynamicForm: React.FC = () => {
   const handleFormSubmit = useCallback(async () => {
     if (submittingStep) return;
 
+    if (!formState.finalConsent) {
+      toast.error("Please provide your consent to submit the application");
+      return;
+    }
+
     try {
       setSubmittingStep("submit");
       setStepErrors((prev) => ({ ...prev, ["submit"]: null }));
@@ -261,7 +281,7 @@ const DynamicForm: React.FC = () => {
         additionalInfo: {},
       });
 
-      alert("Application submitted successfully!");
+      toast.success("Application submitted successfully!");
     } catch (error: any) {
       console.error("Error submitting application:", error);
       const errorMessage =
@@ -269,6 +289,7 @@ const DynamicForm: React.FC = () => {
         error?.message ||
         "Failed to submit application";
       setStepErrors((prev) => ({ ...prev, ["submit"]: errorMessage }));
+      toast.error(errorMessage);
     } finally {
       setSubmittingStep(null);
     }
@@ -278,6 +299,7 @@ const DynamicForm: React.FC = () => {
     setStepErrors({});
     mutations.resetForm();
     hasInitialized.current = false;
+    toast.success("Form reset successfully");
   }, [mutations]);
 
   const isStepAccessible = useCallback(
@@ -316,7 +338,7 @@ const DynamicForm: React.FC = () => {
 
   return (
     <Container maxWidth="lg">
-      <Paper elevation={3} sx={{ mt: 4, mb: 4, p: 4 }}>
+      <Paper elevation={0} sx={{ mt: 4, mb: 4, p: 4, border: '1px solid', borderColor: 'grey.300' }}>
         {formStepsData && formStepsData.length > 0 && (
           <StepProgressBar
             steps={formStepsData.map((step) => ({

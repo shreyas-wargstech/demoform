@@ -17,6 +17,7 @@ import { AccordionStep as AccordionStepType } from "../data";
 import FieldRenderer from "./FieldRenderer";
 import AddressSection from "../SpecialSections/AddressSection";
 import AadharFlow from "../SpecialSections/AadharFlow";
+import ApplicationSummarySection from "../SpecialSections/ApplicationSummarySection";
 import PaymentSection from "../SpecialSections/PaymentSection";
 import SubmitSection from "../SpecialSections/SubmitSection";
 import NavigationButtons from "../../_components/navigationButtons";
@@ -103,6 +104,16 @@ const AccordionStep: React.FC<AccordionStepProps> = ({
           />
         );
 
+      case "application-summary":
+        return (
+          <ApplicationSummarySection
+            formData={formData}
+            onNext={onNext}
+            onPrevious={onPrevious}
+            isFirstStep={isFirstStep}
+          />
+        );
+
       case "payment":
         return (
           <PaymentSection
@@ -135,6 +146,7 @@ const AccordionStep: React.FC<AccordionStepProps> = ({
     if (
       step.id === "address" ||
       step.id === "aadhar-verification" ||
+      step.id === "application-summary" ||
       step.id === "payment" ||
       step.id === "submit"
     ) {
@@ -164,7 +176,7 @@ const AccordionStep: React.FC<AccordionStepProps> = ({
           showPrevious={!isFirstStep}
           showNext={true}
           canProceed={isCompleted}
-          nextDisabled={!isCompleted || isSubmitting} // ADD isSubmitting check
+          nextDisabled={!isCompleted || isSubmitting}
           isLastStep={isLastStep}
           onSubmit={onSubmit}
         />
@@ -185,7 +197,8 @@ const AccordionStep: React.FC<AccordionStepProps> = ({
       expanded={isExpanded}
       onChange={handleAccordionChange}
       disabled={isDisabled}
-      sx={{ mb: 2 }}
+      sx={{ mb: 2, border: '1px solid', borderColor: 'grey.300' }}
+      elevation={0}
     >
       <AccordionSummary
         expandIcon={isAccessible ? <ExpandMoreIcon /> : <LockIcon />}

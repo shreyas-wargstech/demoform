@@ -160,9 +160,10 @@ const STEP_ORDER = [
   "qualifications",
   "upload-documents",
   "aadhar-verification",
+  "application-summary",  // NEW STEP
   "payment",
   "submit",
-];
+]
 
 export const useNewReg = (): UseFormReturn => {
   const dispatch = useAppDispatch();
@@ -353,7 +354,6 @@ export const useNewReg = (): UseFormReturn => {
     (stepId: string): boolean => {
       switch (stepId) {
         case "personal-information":
-          // CHECK ALL 11 REQUIRED FIELDS FROM data.ts
           return !!(
             personalInfo.firstName &&
             personalInfo.firstName.trim() !== "" &&
@@ -364,9 +364,9 @@ export const useNewReg = (): UseFormReturn => {
             personalInfo.nationality &&
             personalInfo.maritalStatus &&
             personalInfo.mobileNo &&
-            /^\d{10}$/.test(personalInfo.mobileNo) && // Validate 10 digits
+            /^\d{10}$/.test(personalInfo.mobileNo) &&
             personalInfo.email &&
-            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalInfo.email) && // Validate email format
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalInfo.email) &&
             personalInfo.motherName &&
             personalInfo.motherName.trim() !== "" &&
             personalInfo.fatherName &&
@@ -374,7 +374,6 @@ export const useNewReg = (): UseFormReturn => {
           );
 
         case "address":
-          // Check ALL required permanent address fields
           const permanentAddressValid = !!(
             addresses.permanent.permanentStreet &&
             addresses.permanent.permanentStreet.trim() !== "" &&
@@ -387,15 +386,13 @@ export const useNewReg = (): UseFormReturn => {
             addresses.permanent.permanentState &&
             addresses.permanent.permanentState.trim() !== "" &&
             addresses.permanent.permanentPincode &&
-            /^\d{6}$/.test(addresses.permanent.permanentPincode) // Validate 6 digits
+            /^\d{6}$/.test(addresses.permanent.permanentPincode)
           );
 
-          // If same as permanent, correspondence is automatically valid
           if (addresses.isSameAddress) {
             return permanentAddressValid;
           }
 
-          // Check ALL required correspondence address fields
           const correspondenceAddressValid = !!(
             addresses.correspondence.correStreet &&
             addresses.correspondence.correStreet.trim() !== "" &&
@@ -408,13 +405,12 @@ export const useNewReg = (): UseFormReturn => {
             addresses.correspondence.correState &&
             addresses.correspondence.correState.trim() !== "" &&
             addresses.correspondence.correPincode &&
-            /^\d{6}$/.test(addresses.correspondence.correPincode) // Validate 6 digits
+            /^\d{6}$/.test(addresses.correspondence.correPincode)
           );
 
           return permanentAddressValid && correspondenceAddressValid;
 
         case "qualifications":
-          // Check ALL 7 required fields
           return !!(
             qualification.degreeName &&
             qualification.degreeName.trim() !== "" &&
@@ -431,8 +427,6 @@ export const useNewReg = (): UseFormReturn => {
           );
 
         case "upload-documents":
-          // According to data.ts, documents are NOT required (commented out)
-          // But if you want to enforce them, check specific ones
           return !!(
             documents.tenthMarksheet ||
             documents.twelfthMarksheet ||
@@ -446,8 +440,12 @@ export const useNewReg = (): UseFormReturn => {
             aadhaarVerification.isVerified &&
             aadhaarVerification.consentCheckbox &&
             aadhaarVerification.aadharNo &&
-            /^\d{12}$/.test(aadhaarVerification.aadharNo) // Validate 12 digits
+            /^\d{12}$/.test(aadhaarVerification.aadharNo)
           );
+
+        case "application-summary":
+          // Application summary is just a review step - always considered complete
+          return true;
 
         case "payment":
           return (
