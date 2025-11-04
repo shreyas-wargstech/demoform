@@ -1,26 +1,176 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans:wght@600&display=swap");
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+.noto-sans-semibold {
+  font-family: "Noto Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-style: normal;
+  font-variation-settings: "wdth" 100;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Font Size Control Classes */
+.font-size-small {
+  font-size: 0.875rem; /* 14px */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.font-size-small * {
+  font-size: inherit !important;
+}
+
+.font-size-small h1 {
+  font-size: 1.5rem !important; /* 24px */
+}
+
+.font-size-small h2 {
+  font-size: 1.25rem !important; /* 20px */
+}
+
+.font-size-small h3 {
+  font-size: 1.125rem !important; /* 18px */
+}
+
+.font-size-small .text-sm {
+  font-size: 0.75rem !important; /* 12px */
+}
+
+.font-size-small .text-xs {
+  font-size: 0.625rem !important; /* 10px */
+}
+
+.font-size-normal {
+  font-size: 1rem; /* 16px - default */
+}
+
+.font-size-large {
+  font-size: 1.125rem; /* 18px */
+}
+
+.font-size-large * {
+  font-size: inherit !important;
+}
+
+.font-size-large h1 {
+  font-size: 2.5rem !important; /* 40px */
+}
+
+.font-size-large h2 {
+  font-size: 2rem !important; /* 32px */
+}
+
+.font-size-large h3 {
+  font-size: 1.75rem !important; /* 28px */
+}
+
+.font-size-large .text-sm {
+  font-size: 1rem !important; /* 16px */
+}
+
+.font-size-large .text-xs {
+  font-size: 0.875rem !important; /* 14px */
+}
+
+/* Success Screen Styles */
+.success-screen-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0;
+  background-color: #fafafa;
+}
+
+.success-screen-content {
+  width: 100%;
+  max-width: 600px;
+}
+
+.success-icon-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.success-icon {
+  border-radius: 16px;
+  filter: drop-shadow(0 4px 12px rgba(139, 92, 246, 0.3));
+}
+
+.success-title {
+  text-align: center;
+  font-weight: 600 !important;
+  color: #1a1a1a !important;
+  margin-bottom: 32px !important;
+  font-size: 2.125rem !important;
+}
+
+@media (max-width: 600px) {
+  .success-title {
+    font-size: 1.75rem !important;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.application-summary-card {
+  max-width: 800px;
+  margin: 0 auto;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid #f0f0f0 !important;
+}
+
+.card-content {
+  padding: 32px !important;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.document-icon {
+  font-size: 20px;
+  margin-right: 16px;
+  color: #8b5cf6;
+}
+
+.card-title {
+  font-weight: 600 !important;
+  color: #1a1a1a !important;
+  flex: 1;
+}
+
+.status-chip {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  font-weight: 500 !important;
+  font-size: 0.75rem !important;
+  height: 24px !important;
+}
+
+.status-chip .MuiChip-label {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+.info-row {
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  color: #666 !important;
+  font-weight: 400 !important;
+  font-size: 0.875rem !important;
+  margin-bottom: 4px !important;
+}
+
+.field-value {
+  color: #1a1a1a !important;
+  font-weight: 500 !important;
+  font-size: 0.9rem !important;
 }
