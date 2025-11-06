@@ -70,7 +70,7 @@ const SubmitSection: React.FC<SubmitSectionProps> = ({
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <CheckCircle color="success" fontSize="small" />
-          <Typography variant="body2">Aadhaar Verified</Typography>
+          <Typography variant="body2">Aadhar Verified</Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <CheckCircle color="success" fontSize="small" />

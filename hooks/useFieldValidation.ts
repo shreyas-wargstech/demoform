@@ -65,9 +65,9 @@
 //           }
 //           break;
 
-//         case 'aadhaarInput':
+//         case 'aadharInput':
 //           if (value.length !== 12 || !/^\d{12}$/.test(value)) {
-//             validationError = 'Aadhaar number must be 12 digits';
+//             validationError = 'Aadhar number must be 12 digits';
 //           }
 //           break;
 
@@ -229,10 +229,10 @@ const useFieldValidation = (
             validationError = "PIN code must be 6 digits";
           }
           break;
-        case "aadhaarInput":
+        case "aadharInput":
         case "aadharNo":
           if (value.length !== 12 || !/^\d{12}$/.test(value)) {
-            validationError = "Aadhaar number must be 12 digits";
+            validationError = "Aadhar number must be 12 digits";
           }
           break;
         case "dateOfBirth":

@@ -384,7 +384,7 @@ export const formStepsData: AccordionStep[] = [
       },
       {
         name: "idProof",
-        label: "Valid ID Proof (Aadhaar / PAN / Driving License)",
+        label: "Valid ID Proof (Aadhar / PAN / Driving License)",
         type: "file",
         // required: true,
         accept: ".pdf,.jpg,.jpeg,.png",
@@ -401,7 +401,7 @@ export const formStepsData: AccordionStep[] = [
   },
   {
     id: "aadhar-verification",
-    title: "Aadhaar Verification",
+    title: "Aadhar Verification",
     stepNumber: 5,
     fields: [
       {
@@ -410,53 +410,46 @@ export const formStepsData: AccordionStep[] = [
         type: "radio",
         required: true,
         options: [
-          { value: "aadhar-number", label: "Aadhaar Number" },
+          { value: "aadhar-number", label: "Aadhar Number" },
           { value: "virtual-id", label: "Virtual ID (VID)" },
         ],
       },
       {
         name: "aadharNo",
-        label: "Aadhaar Number",
+        label: "Aadhar Number",
         type: "text",
         required: true,
-        placeholder: "Enter 12-digit Aadhaar number",
+        placeholder: "Enter 12-digit Aadhar number",
         validation: {
           pattern: /^\d{12}$/,
-          message: "Aadhaar number must be 12 digits",
+          message: "Aadhar number must be 12 digits",
         },
       },
       {
         name: "consentCheckbox",
         label:
-          "I hereby give my consent and agree to the terms and conditions for Aadhaar based authentication/verification. I understand that my biometric/demographic information will be used for verification purposes only and will be handled as per the privacy policy.",
+          "I hereby give my consent and agree to the terms and conditions for Aadhar based authentication/verification. I understand that my biometric/demographic information will be used for verification purposes only and will be handled as per the privacy policy.",
         type: "checkbox",
         required: true,
       },
     ],
   },
   {
+    id: 'application-summary',
+    title: "Application Summary",
+    stepNumber: 6,
+    fields: [],
+  },
+  {
     id: "payment",
     title: "Payment",
-    stepNumber: 6,
-    fields: [
-      {
-        name: "paymentMethod",
-        label: "Select Payment Method",
-        type: "radio",
-        required: true,
-        options: [
-          { value: "upi", label: "UPI" },
-          { value: "credit-debit-card", label: "Credit/Debit Card" },
-          { value: "net-banking", label: "Net Banking" },
-          { value: "digital-wallet", label: "Digital Wallet" },
-        ],
-      },
-    ],
+    stepNumber: 7,
+    fields: [],
   },
   {
     id: "submit",
     title: "Submit",
-    stepNumber: 7,
+    stepNumber: 8,
     fields: [
       {
         name: "finalConsent",

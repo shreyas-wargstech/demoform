@@ -4,7 +4,7 @@ import type { RootState } from "../index";
 import {
   createPayment,
   startForm,
-  submitAadhaar,
+  submitAadhar,
   submitAddress,
   submitApplication,
   submitDocuments,
@@ -14,11 +14,13 @@ import {
   fetchAddress,
   fetchQualification,
   fetchDocuments,
-  fetchAadhaar,
+  fetchAadhar,
   fetchPayment,
   loadExistingFormData,
   loadExistingFormDataSelective,
+  verifyPayment,
 } from "../actions/newRegAction";
+import { parse } from "path";
 
 // API Response Types
 
@@ -59,7 +61,7 @@ export interface PaymentResponse {
   formId: string;
   applicationType: string;
   amount: number;
-  status: "PENDING" | "SUCCESSFUL" | "FAILED" | "INITIATED";
+  status: "PENDING" | "SUCCESSFUL" | "FAILED" | "INITIATED" | "REFUNDED";
   requiredSteps: string[];
   nextAction: string;
 }
@@ -113,20 +115,20 @@ export interface Qualification {
 
 // Documents (aligned with API field names)
 export interface Documents {
-  tenthMarksheet: File | null; // API uses "tenthMarksheet"
-  twelfthMarksheet: File | null; // API uses "twelfthMarksheet"
-  finalYearMarksheet: File | null; // API uses "finalYearMarksheet"
-  collegeLeaving: File | null; // API uses "collegeLeaving"
-  attemptCertificate: File | null;
-  internshipCertificate: File | null;
-  photo: File | null; // API uses "photo"
-  signature: File | null; // API uses "signature"
-  idProof: File | null; // API uses "idProof"
-  nationalityCertificate: File | null; // API uses "nationalityCertificate"
+  tenthMarksheet: File | string | null; // API uses "tenthMarksheet"
+  twelfthMarksheet: File | string | null; // API uses "twelfthMarksheet"
+  finalYearMarksheet: File | string | null; // API uses "finalYearMarksheet"
+  collegeLeaving: File | string | null; // API uses "collegeLeaving"
+  attemptCertificate: File | string | null;
+  internshipCertificate: File | string | null;
+  photo: File | string | null; // API uses "photo"
+  signature: File | string | null; // API uses "signature"
+  idProof: File | string | null; // API uses "idProof"
+  nationalityCertificate: File | string | null; // API uses "nationalityCertificate"
 }
 
-// Aadhaar Verification (aligned with API)
-export interface AadhaarVerification {
+// Aadhar Verification (aligned with API)
+export interface AadharVerification {
   aadharNo: string; // API uses "aadharNo"
   validAadhar: boolean; // API uses "validAadhar"
   verificationMethod: "aadhar-number" | "virtual-id" | "";
@@ -142,7 +144,7 @@ export interface Payment {
   applicationType: string;
   payment_name: string;
   amount: number;
-  status: "PENDING" | "SUCCESSFUL" | "FAILED" | "INITIATED";
+  status: "PENDING" | "SUCCESSFUL" | "FAILED" | "INITIATED" | "REFUNDED";
   paymentMethod: "upi" | "credit-debit-card" | "net-banking" | "digital-wallet";
   receiptId: string;
   razorpay_payment_id?: string | null; // MAKE OPTIONAL
@@ -169,7 +171,7 @@ export interface FormState {
   addresses: Addresses;
   qualification: Qualification;
   documents: Documents;
-  aadhaarVerification: AadhaarVerification;
+  aadharVerification: AadharVerification;
   payment: Payment;
   uploadedUrls: { [key: string]: string };
   loading: boolean;
@@ -244,7 +246,7 @@ const initialState: FormState = {
     idProof: null,
     nationalityCertificate: null,
   },
-  aadhaarVerification: {
+  aadharVerification: {
     aadharNo: "",
     validAadhar: false,
     verificationMethod: "",
@@ -393,13 +395,13 @@ export const formSlice = createSlice({
       state.documents[docType] = file;
     },
 
-    // Aadhaar Verification
-    updateAadhaarVerification: (
+    // Aadhar Verification
+    updateAadharVerification: (
       state,
-      action: PayloadAction<Partial<AadhaarVerification>>,
+      action: PayloadAction<Partial<AadharVerification>>,
     ) => {
-      state.aadhaarVerification = {
-        ...state.aadhaarVerification,
+      state.aadharVerification = {
+        ...state.aadharVerification,
         ...action.payload,
       };
     },
@@ -432,6 +434,9 @@ export const formSlice = createSlice({
       state.error = null;
     },
     resetForm: () => initialState,
+    setSubmittedSteps: (state, action: PayloadAction<string[]>) => {
+      state.submittedSteps = action.payload;
+    },
   },
   extraReducers: (builder) => {
     // Start Form
@@ -450,14 +455,14 @@ export const formSlice = createSlice({
 
         // IMPORTANT: Only mark data as loaded if it's a new form
         // If existing, wait for loadExistingFormData to complete
-        state.dataLoaded = !action.payload.isExisting;
+        // state.dataLoaded = !action.payload.isExisting;
 
         if (action.payload.isExisting && action.payload.nextStep) {
           const nextStepNum =
             typeof action.payload.nextStep === "number"
               ? action.payload.nextStep
-              : 1;
-          state.currentStep = nextStepNum;
+              : parseInt(action.payload.nextStep);
+          // state.currentStep = nextStepNum;
 
           const stepIdMap: { [key: number]: string } = {
             1: "personal-information",
@@ -465,14 +470,24 @@ export const formSlice = createSlice({
             3: "qualifications",
             4: "upload-documents",
             5: "aadhar-verification",
-            6: "payment",
-            7: "submit",
+            6: "application-summary",
+            7: "payment",
+            8: "submit",
           };
+          // state.stepId = stepIdMap[nextStepNum] || "personal-information";
+          for (let i = 1; i < nextStepNum; i++) {
+            const stepId = stepIdMap[i];
+            if (stepId && !state.submittedSteps.includes(stepId)) {
+              state.submittedSteps.push(stepId);
+            }
+          }
+          state.currentStep = nextStepNum;
           state.stepId = stepIdMap[nextStepNum] || "personal-information";
         } else {
           state.stepId = "personal-information";
           state.currentStep = 1;
         }
+        state.dataLoaded = !action.payload.isExisting;
       })
 
       .addCase(startForm.rejected, (state, action) => {
@@ -561,6 +576,13 @@ export const formSlice = createSlice({
               attemptCertificate: academicDocs.attemptCertificate || "",
               internshipCertificate: academicDocs.internshipCertificate || "",
             };
+
+            state.documents.tenthMarksheet = academicDocs.tenthMarksheet || null;
+            state.documents.twelfthMarksheet = academicDocs.twelthMarksheet || null;
+            state.documents.finalYearMarksheet = academicDocs.finalYearMarksheet || null;
+            state.documents.collegeLeaving = academicDocs.collegeLeaving || null;
+            state.documents.attemptCertificate = academicDocs.attemptCertificate || null;
+            state.documents.internshipCertificate = academicDocs.internshipCertificate || null;
           }
 
           if (personalDocs) {
@@ -571,18 +593,28 @@ export const formSlice = createSlice({
               idProof: personalDocs.idProof || "",
               nationalityCertificate: personalDocs.nationalityCertificate || "",
             };
+
+            state.documents.photo = personalDocs.photo || null;
+            state.documents.signature = personalDocs.signature || null;
+            state.documents.idProof = personalDocs.idProof || null;
+            state.documents.nationalityCertificate = personalDocs.nationalityCertificate || null;
           }
         }
 
-        // Aadhaar
-        if (action.payload.aadhaar?.data) {
-          const data = action.payload.aadhaar.data;
-          state.aadhaarVerification = {
-            ...state.aadhaarVerification,
+        // Aadhar
+        if (action.payload.aadhar?.data) {
+          const data = action.payload.aadhar.data;
+          state.aadharVerification = {
+            ...state.aadharVerification,
             aadharNo: data.aadharNo || "",
             validAadhar: data.validAadhar || false,
             isVerified: data.isVerified || false,
           };
+          if (data.isVerified && data.validAadhar) {
+            if (!state.submittedSteps.includes('aadhar-verification')) {
+              state.submittedSteps.push('aadhar-verification');
+            }
+          }
         }
 
         // Payment
@@ -676,6 +708,12 @@ export const formSlice = createSlice({
         if (action.payload.documents?.data) {
           const academicDocs = action.payload.documents.data.academicDocuments;
           const personalDocs = action.payload.documents.data.personalDocuments;
+          const uploadStatus = action.payload.documents.data.uploadStatus;
+          if (uploadStatus?.allDocumentsUploaded) {
+            if (!state.submittedSteps.includes("upload-documents")) {
+              state.submittedSteps.push("upload-documents");
+            }
+          }
 
           if (academicDocs) {
             state.uploadedUrls = {
@@ -687,6 +725,12 @@ export const formSlice = createSlice({
               attemptCertificate: academicDocs.attemptCertificate || "",
               internshipCertificate: academicDocs.internshipCertificate || "",
             };
+            state.documents.tenthMarksheet = academicDocs.tenthMarksheet || null;
+            state.documents.twelfthMarksheet = academicDocs.twelthMarksheet || null;
+            state.documents.finalYearMarksheet = academicDocs.finalYearMarksheet || null;
+            state.documents.collegeLeaving = academicDocs.collegeLeaving || null;
+            state.documents.attemptCertificate = academicDocs.attemptCertificate || null;
+            state.documents.internshipCertificate = academicDocs.internshipCertificate || null;
           }
 
           if (personalDocs) {
@@ -697,20 +741,31 @@ export const formSlice = createSlice({
               idProof: personalDocs.idProof || "",
               nationalityCertificate: personalDocs.nationalityCertificate || "",
             };
+
+            state.documents.photo = personalDocs.photo || null;
+            state.documents.signature = personalDocs.signature || null;
+            state.documents.idProof = personalDocs.idProof || null;
+            state.documents.nationalityCertificate = personalDocs.nationalityCertificate || null;
           }
           console.log("Documents loaded into state:", state.uploadedUrls);
         }
 
-        // Aadhaar (Step 5)
-        if (action.payload.aadhaar?.data) {
-          const data = action.payload.aadhaar.data;
-          state.aadhaarVerification = {
-            ...state.aadhaarVerification,
+        // Aadhar (Step 5)
+        if (action.payload.aadhar?.data) {
+          const data = action.payload.aadhar.data;
+          state.aadharVerification = {
+            ...state.aadharVerification,
             aadharNo: data.aadharNo || "",
             validAadhar: data.validAadhar || false,
             isVerified: data.isVerified || false,
           };
-          console.log("Aadhaar loaded into state:", state.aadhaarVerification);
+
+          if (data.isVerified && data.validAadhar) {
+            if (!state.submittedSteps.includes('aadhar-verification')) {
+              state.submittedSteps.push('aadhar-verification');
+            }
+          }
+          console.log("Aadhar loaded into state:", state.aadharVerification);
         }
 
         // Payment (Step 6)
@@ -722,6 +777,12 @@ export const formSlice = createSlice({
             amount: parseFloat(data.amount) || 0,
             status: data.status || "PENDING",
           };
+
+          if (data.status === "SUCCESSFUL") {
+            if (!state.submittedSteps.includes('payment')) {
+              state.submittedSteps.push('payment');
+            }
+          }
           console.log("Payment loaded into state:", state.payment);
         }
       })
@@ -870,29 +931,24 @@ export const formSlice = createSlice({
         state.error = action.error.message || "Failed to upload documents";
       });
 
-    // Aadhaar
+    // Aadhar
     builder
-      .addCase(submitAadhaar.pending, (state) => {
+      .addCase(submitAadhar.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(submitAadhaar.fulfilled, (state, action) => {
+      .addCase(submitAadhar.fulfilled, (state, action) => {
         state.loading = false;
 
-        // Add to array if not already present (FIXED: changed .add to .push)
-        if (!state.submittedSteps.includes("aadhar-verification")) {
-          state.submittedSteps.push("aadhar-verification");
-        }
-
-        // Update Aadhaar data
-        state.aadhaarVerification.aadharNo = action.payload.aadharNo || "";
-        state.aadhaarVerification.validAadhar =
+        // Update Aadhar data
+        state.aadharVerification.aadharNo = action.payload.aadharNo || "";
+        state.aadharVerification.validAadhar =
           action.payload.validAadhar || false;
-        state.aadhaarVerification.isVerified = true;
+        state.aadharVerification.isVerified = true;
       })
-      .addCase(submitAadhaar.rejected, (state, action) => {
+      .addCase(submitAadhar.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || "Failed to verify Aadhaar";
+        state.error = action.error.message || "Failed to verify Aadhar";
       });
 
     // Payment
@@ -912,7 +968,7 @@ export const formSlice = createSlice({
         // Update payment data
         state.payment.paymentId = action.payload.paymentId || "";
         state.payment.amount = action.payload.amount || 0;
-        state.payment.status = action.payload.status || "PENDING";
+        state.payment.status = action.payload.status || "INITIATED";
         state.payment.razorpay_payment_id =
           action.payload.razorpay_payment_id || null;
         state.payment.razorpay_order_id =
@@ -920,7 +976,64 @@ export const formSlice = createSlice({
       })
       .addCase(createPayment.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || "Failed to create payment";
+
+        // With rejectWithValue, the error data is in action.payload
+        const errorData = action.payload as any;
+
+        // Check if payment was already completed (status 400 with SUCCESSFUL status)
+        if (errorData?.status === "SUCCESSFUL") {
+          // Payment already exists and is successful - update the state
+          if (!state.submittedSteps.includes("payment")) {
+            state.submittedSteps.push("payment");
+          }
+
+          state.payment.paymentId = errorData.paymentId;
+          state.payment.status = "SUCCESSFUL";
+
+          // Don't set error message for successful payments
+          state.error = null;
+        } else {
+          // Actual error occurred
+          state.error = errorData?.error || action.error.message || "Failed to create payment";
+        }
+      });
+
+    builder
+      .addCase(verifyPayment.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyPayment.fulfilled, (state, action) => {
+        state.loading = false;
+
+        // Update payment status to SUCCESSFUL
+        state.payment.status = action.payload.status;
+        state.payment.paymentId = action.payload.paymentId;
+        state.payment.razorpay_payment_id = action.payload.paymentId;
+        if(action.payload.nextStep === 'You can now submit your application') {
+          state.stepId = 'submit';
+        }
+
+        // Mark payment step as completed
+        if (action.payload.status === 'SUCCESSFUL') {
+          if (!state.submittedSteps.includes('payment')) {
+            state.submittedSteps.push('payment');
+          }
+          
+        }
+      })
+      .addCase(verifyPayment.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to verify payment';
+        const errorData = action.payload as any;
+        if(errorData.error === "Payment already verified") {
+          state.payment.status = 'SUCCESSFUL';
+          if(!state.submittedSteps.includes('payment')) {
+            state.submittedSteps.push('payment');
+          }
+        } else {
+          state.payment.status = 'FAILED';
+        }
       });
 
     // Submit Application
@@ -956,7 +1069,7 @@ export const {
   setSameAddresses,
   updateQualification,
   updateDocument,
-  updateAadhaarVerification,
+  updateAadharVerification,
   updatePayment,
   setStep,
   setFormId,
@@ -964,6 +1077,7 @@ export const {
   setFinalConsent,
   clearError,
   resetForm,
+  setSubmittedSteps
 } = formSlice.actions;
 
 // Selectors
@@ -980,8 +1094,8 @@ export const selectQualification = (state: RootState) =>
   state.applicationForm.qualification;
 export const selectDocuments = (state: RootState) =>
   state.applicationForm.documents;
-export const selectAadhaarVerification = (state: RootState) =>
-  state.applicationForm.aadhaarVerification;
+export const selectAadharVerification = (state: RootState) =>
+  state.applicationForm.aadharVerification;
 export const selectPayment = (state: RootState) =>
   state.applicationForm.payment;
 export const selectFormId = (state: RootState) => state.applicationForm.formId;

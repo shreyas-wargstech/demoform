@@ -1,30 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
-
-import React, { useState, useEffect } from "react";
+'use client';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
   Paper,
   Grid,
-  Card,
-  CardContent,
   Button,
   Divider,
   Alert,
   CircularProgress,
-} from "@mui/material";
+} from '@mui/material';
 import {
-  CreditCard,
-  AccountBalance,
-  Wallet,
-  QrCode,
   CheckCircle,
   ErrorOutline,
-} from "@mui/icons-material";
-import NavigationButtons from "../navigationButtons";
-import { useAppSelector } from "@/store/hook";
-import { toast } from "sonner";
+} from '@mui/icons-material';
+import NavigationButtons from '../../_components/navigationButtons';
+import { useAppSelector } from '@/store/hook';
+import { useNewReg } from '@/store/hooks/useNewReg';
+import { toast } from 'sonner';
 
 interface PaymentSectionProps {
   formData: { [key: string]: any };
@@ -41,105 +35,161 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
   onPrevious,
   isFirstStep,
 }) => {
+  const { actions, formState } = useNewReg();
+
   const isExistingForm = useAppSelector(
-    (state) => state.applicationForm?.isExistingForm || false,
+    (state) => state.applicationForm?.isExistingForm || false
   );
   const dataLoaded = useAppSelector(
-    (state) => state.applicationForm?.dataLoaded || false,
+    (state) => state.applicationForm?.dataLoaded || false
   );
-  const paymentData = useAppSelector((state) => state.applicationForm?.payment);
+  const paymentData = useAppSelector(
+    (state) => state.applicationForm?.payment
+  );
 
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(
-    formData.paymentStatus === "completed" ||
-      (isExistingForm && dataLoaded && paymentData?.status === "SUCCESSFUL"),
+    formData.paymentStatus === 'SUCCESSFUL' ||
+    (isExistingForm && dataLoaded && paymentData?.status === 'SUCCESSFUL')
   );
   const [paymentFailed, setPaymentFailed] = useState(false);
+  const [paymentId, setPaymentId] = useState<string>('');
+  const [paymentTime, setPaymentTime] = useState<string>('');
 
+  // Load existing payment status
   useEffect(() => {
-    if (isExistingForm && dataLoaded && paymentData?.status === "SUCCESSFUL") {
+    if (isExistingForm && dataLoaded && paymentData?.status === 'SUCCESSFUL') {
       setPaymentCompleted(true);
-      onChange("paymentStatus", "completed");
-      onChange(
-        "transactionId",
-        paymentData.razorpay_payment_id || paymentData.paymentId,
-      );
+      onChange('paymentStatus', 'completed');
+      onChange('transactionId', paymentData.razorpay_payment_id || paymentData.paymentId);
     }
   }, [isExistingForm, dataLoaded, paymentData]);
 
-  const handlePaymentMethodChange = (method: string) => {
-    onChange("paymentMethod", method);
-  };
-
+  // Step 1: Call createPayment API (/api/v1/payments/form-payment)
   const handlePayment = async () => {
-    if (!formData.paymentMethod) {
-      toast.error("Please select a payment method");
-      return;
-    }
-
     setPaymentProcessing(true);
     setPaymentFailed(false);
 
-    // Simulate payment processing
-    setTimeout(() => {
-      setPaymentProcessing(false);
-      
-      // Simulate success (90% success rate for demo)
-      const isSuccess = Math.random() > 0.1;
-      
-      if (isSuccess) {
+    try {
+      const response = await actions.createPayment({
+        formId: formState.formId,
+        applicationType: formState.applicationType,
+        payment_name: 'Medical License Application Fee',
+      });
+
+      console.log('Payment creation response:', response);
+
+      setPaymentId(response.paymentId);
+
+      if (response.status === "SUCCESSFUL") {
+        setPaymentFailed(false);
+        setPaymentId(response.paymentId);
+        setPaymentTime(response.completedAt);
         setPaymentCompleted(true);
-        onChange("paymentStatus", "completed");
-        onChange("transactionId", `TXN${Date.now()}`);
-        toast.success("Payment successful!");
-        
+        setPaymentProcessing(false);
+
+        onChange('paymentStatus', 'SUCCESSFUL');
+        onChange('transactionId', response.paymentId);
+      } else if (response.status === "FAILED") {
+        setPaymentProcessing(false);
+        setPaymentFailed(true);
+      }
+
+      setTimeout(async () => {
+        await handlePaymentVerification(response.paymentId);
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Payment creation failed:', error);
+
+      setPaymentProcessing(false);
+
+      // FIXED: Now you can directly access the rejected value
+      // When using rejectWithValue, the error IS the data you returned
+      console.log('Error data:', error);
+
+      if (error?.status === "SUCCESSFUL") {
+        // Payment already completed
+        setPaymentCompleted(true);
+        setPaymentFailed(false);
+        setPaymentId(error.paymentId);
+        setPaymentTime(error.completedAt);
+
+        onChange('paymentStatus', 'SUCCESSFUL');
+        onChange('transactionId', error.paymentId);
+
+        setTimeout(async () => {
+          await handlePaymentVerification(error.paymentId);
+        }, 2000);
+
+        toast.success('Payment already completed');
+      } else {
+        // Actual failure
+        setPaymentFailed(true);
+        toast.error(error?.error || 'Failed to initiate payment');
+      }
+    }
+  };
+
+
+  // Step 2: Call verifyPayment API (/api/v1/payments/form-payment/verify)
+  const handlePaymentVerification = async (createdPaymentId: string) => {
+    try {
+      // In production, these values would come from your payment gateway callback
+      const mockPaymentReference = 'PAY_MOCK_REF_' + Date.now();
+      const mockTransactionId = 'TXN_MOCK_ID_' + Date.now();
+
+      // Call the verifyPayment API
+      const verifyResponse = await actions.verifyPayment({
+        formId: formState.formId,
+        paymentReference: mockPaymentReference,
+        transactionId: mockTransactionId,
+      });
+
+      console.log('Payment verification response:', verifyResponse);
+
+      if (verifyResponse.status === 'SUCCESSFUL') {
+        setPaymentCompleted(true);
+        setPaymentProcessing(false);
+
+        // Update form data
+        onChange('paymentStatus', 'SUCCESSFUL');
+        onChange('transactionId', verifyResponse.paymentId);
+
+        toast.success('Payment successful!');
+
         // Auto-proceed to next step after successful payment
         setTimeout(() => {
           onNext();
         }, 2000);
       } else {
-        setPaymentFailed(true);
-        toast.error("Payment failed. Please try again.");
+        throw new Error('Payment verification failed');
       }
-    }, 3000);
+
+    } catch (error: any) {
+      // console.error('Payment verification failed:', error);
+      if(error.error === "Payment already verified") {
+        setPaymentCompleted(true);
+        setPaymentProcessing(false);
+        setPaymentTime(error.completedAt);
+        onChange('paymentStatus', 'SUCCESSFUL');
+        toast.success('Payment already verified');
+      } else {
+        setPaymentProcessing(false);
+        setPaymentFailed(true);
+        toast.error(error?.message || 'Payment verification failed. Please try again.');
+      }
+    }
   };
 
   const handleRetryPayment = () => {
     setPaymentFailed(false);
-    onChange("paymentMethod", "");
   };
 
-  const paymentMethods = [
-    {
-      value: "upi",
-      label: "UPI",
-      icon: <QrCode sx={{ fontSize: 40 }} />,
-      description: "Pay using UPI ID or QR code",
-    },
-    {
-      value: "credit-debit-card",
-      label: "Credit/Debit Card",
-      icon: <CreditCard sx={{ fontSize: 40 }} />,
-      description: "Visa, Mastercard, RuPay",
-    },
-    {
-      value: "net-banking",
-      label: "Net Banking",
-      icon: <AccountBalance sx={{ fontSize: 40 }} />,
-      description: "Pay through your bank account",
-    },
-    {
-      value: "digital-wallet",
-      label: "Digital Wallet",
-      icon: <Wallet sx={{ fontSize: 40 }} />,
-      description: "Paytm, PhonePe, Google Pay",
-    },
-  ];
-
   const feeBreakdown = [
-    { label: "Application Fee", amount: 500.0 },
-    { label: "Processing Fee", amount: 50.0 },
-    { label: "GST (18%)", amount: 99.0 },
+    { label: 'Application Fee', amount: 500.0 },
+    { label: 'Processing Fee', amount: 50.0 },
+    { label: 'GST (18%)', amount: 99.0 },
   ];
 
   const totalAmount = feeBreakdown.reduce((sum, item) => sum + item.amount, 0);
@@ -147,19 +197,29 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
   // Payment Success Screen
   if (paymentCompleted) {
     return (
-      <Box sx={{ textAlign: "center", py: 4 }}>
+      <Box sx={{ textAlign: 'center', py: 4 }}>
         <CheckCircle color="success" sx={{ fontSize: 80, mb: 2 }} />
-        <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: "success.main" }}>
+        <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: 'success.main' }}>
           Payment Successful!
         </Typography>
-        
-        <Paper elevation={0} sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'grey.300', maxWidth: 500, mx: 'auto' }}>
+
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3,
+            mb: 3,
+            border: '1px solid',
+            borderColor: 'grey.300',
+            maxWidth: 500,
+            mx: 'auto',
+          }}
+        >
           <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
             Payment Summary
           </Typography>
-          
+
           <Grid container spacing={2}>
-            <Grid size={{ xs:6}}>
+            <Grid size={{ xs: 6 }}>
               <Typography variant="caption" color="text.secondary">
                 Transaction ID
               </Typography>
@@ -167,7 +227,8 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
                 {formData.transactionId || paymentData?.paymentId}
               </Typography>
             </Grid>
-            <Grid size={{ xs:6}}>
+
+            <Grid size={{ xs: 6 }}>
               <Typography variant="caption" color="text.secondary">
                 Amount Paid
               </Typography>
@@ -175,20 +236,13 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
                 ₹{totalAmount.toFixed(2)}
               </Typography>
             </Grid>
-            <Grid size={{ xs:6}}>
-              <Typography variant="caption" color="text.secondary">
-                Payment Method
-              </Typography>
-              <Typography variant="body2" sx={{ textTransform: 'uppercase' }}>
-                {formData.paymentMethod?.replace("-", " ") || "UPI"}
-              </Typography>
-            </Grid>
-            <Grid size={{ xs:6}}>
+
+            <Grid size={{ xs: 6 }}>
               <Typography variant="caption" color="text.secondary">
                 Date
               </Typography>
               <Typography variant="body2">
-                {new Date().toLocaleDateString("en-IN")}
+                {new Date().toLocaleDateString('en-IN')}
               </Typography>
             </Grid>
           </Grid>
@@ -196,13 +250,12 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
 
         {!isExistingForm && (
           <Alert severity="success" sx={{ mb: 3, maxWidth: 500, mx: 'auto' }}>
-            Your payment has been processed successfully. You will be redirected
-            to the final step shortly.
+            Your payment has been processed successfully. You will be redirected to the final step shortly.
           </Alert>
         )}
 
         {isExistingForm && (
-          <Box sx={{ display: "flex", gap: 2, justifyContent: "center", mt: 3 }}>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 3 }}>
             <Button variant="outlined" onClick={onPrevious}>
               Previous
             </Button>
@@ -218,27 +271,33 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
   // Payment Failed Screen
   if (paymentFailed) {
     return (
-      <Box sx={{ textAlign: "center", py: 4 }}>
+      <Box sx={{ textAlign: 'center', py: 4 }}>
         <ErrorOutline color="error" sx={{ fontSize: 80, mb: 2 }} />
-        <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: "error.main" }}>
+        <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: 'error.main' }}>
           Payment Failed
         </Typography>
-        
+
         <Alert severity="error" sx={{ mb: 3, maxWidth: 500, mx: 'auto' }}>
-          Your payment could not be processed. This may be due to insufficient funds,
-          incorrect card details, or a network issue. Please try again.
+          Your payment could not be processed. This may be due to insufficient funds, incorrect card details, or a network issue. Please try again.
         </Alert>
 
-        <Paper elevation={0} sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'grey.300', maxWidth: 500, mx: 'auto' }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3,
+            mb: 3,
+            border: '1px solid',
+            borderColor: 'grey.300',
+            maxWidth: 500,
+            mx: 'auto',
+          }}
+        >
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Amount to be paid: <strong>₹{totalAmount.toFixed(2)}</strong>
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Selected method: <strong>{formData.paymentMethod?.replace("-", " ").toUpperCase()}</strong>
-          </Typography>
         </Paper>
 
-        <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
+        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
           <Button variant="outlined" onClick={onPrevious}>
             Previous
           </Button>
@@ -253,7 +312,7 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
   // Payment Processing Screen
   if (paymentProcessing) {
     return (
-      <Box sx={{ textAlign: "center", py: 4 }}>
+      <Box sx={{ textAlign: 'center', py: 4 }}>
         <CircularProgress size={60} sx={{ mb: 2 }} />
         <Typography variant="h6" sx={{ mb: 2 }}>
           Processing Payment...
@@ -262,8 +321,7 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
           Please do not close this window or press the back button.
         </Alert>
         <Typography variant="body2" color="text.secondary">
-          Processing payment of ₹{totalAmount.toFixed(2)} via{" "}
-          {formData.paymentMethod?.replace("-", " ").toUpperCase()}
+          Processing payment of ₹{totalAmount.toFixed(2)}
         </Typography>
       </Box>
     );
@@ -273,104 +331,50 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
   return (
     <Box>
       {/* Fee Summary */}
-      <Paper elevation={0} sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'grey.300' }}>
+      <Paper
+        elevation={0}
+        sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'grey.300' }}
+      >
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-          📄 Fee Summary
+          Fee Summary
         </Typography>
+
         <Grid container spacing={2}>
           {feeBreakdown.map((item, index) => (
             <React.Fragment key={index}>
-              <Grid size={{ xs:6}}>
+              <Grid size={{ xs: 6 }}>
                 <Typography variant="body2">{item.label}</Typography>
               </Grid>
-              <Grid size={{ xs:6}} sx={{ textAlign: "right" }}>
-                <Typography variant="body2">
-                  ₹ {item.amount.toFixed(2)}
-                </Typography>
+              <Grid size={{ xs: 6 }} sx={{ textAlign: 'right' }}>
+                <Typography variant="body2">₹{item.amount.toFixed(2)}</Typography>
               </Grid>
             </React.Fragment>
           ))}
-          <Grid size={{ xs:6}}>
+
+          <Grid size={{ xs: 6 }}>
             <Divider sx={{ my: 1 }} />
           </Grid>
-          <Grid size={{ xs:8}}>
+
+          <Grid size={{ xs: 8 }}>
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               Total Amount
             </Typography>
           </Grid>
-          <Grid size={{ xs:4}} sx={{ textAlign: "right" }}>
+          <Grid size={{ xs: 4 }} sx={{ textAlign: 'right' }}>
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              ₹ {totalAmount.toFixed(2)}
+              ₹{totalAmount.toFixed(2)}
             </Typography>
           </Grid>
         </Grid>
       </Paper>
 
-      {/* Payment Method Selection */}
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-        💳 Select Payment Method
-      </Typography>
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        {paymentMethods.map((method) => (
-          <Grid size={{ xs:6}} key={method.value}>
-            <Card
-              sx={{
-                cursor: "pointer",
-                border:
-                  formData.paymentMethod === method.value
-                    ? "2px solid"
-                    : "1px solid",
-                borderColor:
-                  formData.paymentMethod === method.value
-                    ? "primary.main"
-                    : "grey.300",
-                "&:hover": {
-                  borderColor: "primary.main",
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                },
-              }}
-              onClick={() => handlePaymentMethodChange(method.value)}
-            >
-              <CardContent sx={{ textAlign: "center" }}>
-                {method.icon}
-                <Typography variant="h6" sx={{ mt: 1, fontWeight: 600 }}>
-                  {method.label}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {method.description}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {formData.paymentMethod && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            Selected Payment Method:{" "}
-            <strong>
-              {
-                paymentMethods.find((m) => m.value === formData.paymentMethod)
-                  ?.label
-              }
-            </strong>
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            You will be redirected to the secure payment gateway to complete
-            your transaction.
-          </Typography>
-        </Alert>
-      )}
-
-      <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
+      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
         <Button variant="outlined" onClick={onPrevious}>
           Previous
         </Button>
         <Button
           variant="contained"
           onClick={handlePayment}
-          disabled={!formData.paymentMethod}
         >
           Pay ₹{totalAmount.toFixed(2)}
         </Button>

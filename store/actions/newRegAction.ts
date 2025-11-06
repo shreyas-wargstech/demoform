@@ -37,6 +37,17 @@ api.interceptors.request.use(
   },
 );
 
+export interface VerifyPaymentResponse {
+  message: string;
+  paymentId: string;
+  formId: string;
+  status: 'SUCCESSFUL' | 'FAILED';
+  amount: number;
+  paidAt: string;
+  readyForSubmission: boolean;
+  nextStep: string;
+}
+
 // Async thunks
 export const startForm = createAsyncThunk(
   "form/start",
@@ -89,8 +100,8 @@ export const fetchDocuments = createAsyncThunk(
   },
 );
 
-export const fetchAadhaar = createAsyncThunk(
-  "form/fetchAadhaar",
+export const fetchAadhar = createAsyncThunk(
+  "form/fetchAadhar",
   async (formId: string) => {
     const response = await api.get(
       `/practitioners/forms/step5/aadhaar?formId=${formId}`,
@@ -178,8 +189,8 @@ export const submitDocuments = createAsyncThunk(
   },
 );
 
-export const submitAadhaar = createAsyncThunk(
-  "form/submitAadhaar",
+export const submitAadhar = createAsyncThunk(
+  "form/submitAadhar",
   async (data: { formId: string; aadharNo: string; validAadhar: boolean }) => {
     const response = await api.post("/practitioners/forms/step5/aadhaar", data);
     return response.data;
@@ -188,14 +199,46 @@ export const submitAadhaar = createAsyncThunk(
 
 export const createPayment = createAsyncThunk(
   "form/createPayment",
+  async (
+    data: {
+      formId: string;
+      applicationType: string;
+      payment_name: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await api.post("/payments/form-payment", data);
+      return response.data as Promise<PaymentResponse>;
+    } catch (error: any) {
+      // Axios puts the response in error.response
+      if (error.response) {
+        // Return the actual API response data so you can access it
+        return rejectWithValue(error.response.data);
+      }
+      // If no response (network error, etc.)
+      return rejectWithValue({ error: error.message });
+    }
+  }
+);
+
+export const verifyPayment = createAsyncThunk(
+  'form/verifyPayment',
   async (data: {
     formId: string;
-    applicationType: string;
-    payment_name: string;
-  }) => {
-    const response = await api.post("/payments/form-payment", data);
-    return response.data as Promise<PaymentResponse>;
-  },
+    paymentReference: string;
+    transactionId: string;
+  }, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/payments/form-payment/verify', data);
+      return response.data as Promise<VerifyPaymentResponse>;
+    } catch (error:any) {
+      if(error.response) {
+        return rejectWithValue(error.response.data);
+      }
+      return rejectWithValue({ error: error.message });
+    }
+  }
 );
 
 export const submitApplication = createAsyncThunk(
@@ -226,7 +269,7 @@ export const loadExistingFormData = createAsyncThunk(
         address,
         qualification,
         documents,
-        aadhaar,
+        aadhar,
         payment,
       ] = await Promise.allSettled([
         api.get(`/practitioners/forms/step1/personal-info?formId=${formId}`),
@@ -247,7 +290,7 @@ export const loadExistingFormData = createAsyncThunk(
             : null,
         documents:
           documents.status === "fulfilled" ? documents.value.data : null,
-        aadhaar: aadhaar.status === "fulfilled" ? aadhaar.value.data : null,
+        aadhar: aadhar.status === "fulfilled" ? aadhar.value.data : null,
         payment: payment.status === "fulfilled" ? payment.value.data : null,
       };
     } catch (error) {
@@ -272,19 +315,20 @@ export const loadExistingFormDataSelective = createAsyncThunk(
         4: () =>
           api.get(`/practitioners/forms/step4/documents?formId=${formId}`),
         5: () => api.get(`/practitioners/forms/step5/aadhaar?formId=${formId}`),
-        6: () => api.get(`/practitioners/forms/step6/payment?formId=${formId}`),
+        7: () => api.get(`/practitioners/forms/step6/payment?formId=${formId}`),
       };
 
       // Calculate completed steps (nextStep - 1)
       const completedSteps = nextStep > 1 ? nextStep - 1 : 0;
 
-      console.log(`Loading data for completed steps 1-${completedSteps}`);
+      // console.log(`Loading data for completed steps 1-${completedSteps}`);
 
       // Fetch only completed steps
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const promises: Promise<any>[] = [];
       for (let i = 1; i <= completedSteps; i++) {
         if (stepEndpoints[i]) {
+          console.log(`Queuing API call for step ${i}`);
           promises.push(stepEndpoints[i]());
         }
       }
@@ -298,8 +342,10 @@ export const loadExistingFormDataSelective = createAsyncThunk(
         "address",
         "qualification",
         "documents",
-        "aadhaar",
+        "aadhar",
+        "application-summary",
         "payment",
+        "submit",
       ];
 
       const data = {
@@ -307,7 +353,7 @@ export const loadExistingFormDataSelective = createAsyncThunk(
         address: null,
         qualification: null,
         documents: null,
-        aadhaar: null,
+        aadhar: null,
         payment: null,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as unknown as any;

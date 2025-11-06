@@ -8,6 +8,8 @@ import { getStepById, STATIC_OTP_CONFIG } from "../data";
 import FieldRenderer from "../DynamicForm/FieldRenderer";
 import NavigationButtons from "../../_components/navigationButtons";
 import { useAppSelector } from "@/store/hook";
+import { toast } from "sonner";
+import useNewReg from "@/store/hooks/useNewReg";
 
 interface AadharFlowProps {
   formData: { [key: string]: any };
@@ -33,13 +35,23 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
   const dataLoaded = useAppSelector(
     (state) => state.applicationForm?.dataLoaded || false,
   );
-  const aadhaarData = useAppSelector(
-    (state) => state.applicationForm?.aadhaarVerification,
+  const aadharVerification = useAppSelector(
+    (state) => state.applicationForm?.aadharVerification,
   );
+
+  const { actions, formState } = useNewReg();
 
   // Determine initial step based on existing data
   const getInitialStep = (): FlowStep => {
-    if (isExistingForm && dataLoaded && aadhaarData?.isVerified) {
+    console.log(
+      "isExistingForm:",
+      isExistingForm,
+      "dataLoaded:",
+      dataLoaded,
+      "aadharVerification:",
+      aadharVerification,
+    );
+    if (isExistingForm && dataLoaded && aadharVerification?.isVerified) {
       return "success";
     }
     return "method-selection";
@@ -55,29 +67,30 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
 
   // Update step if existing data loads
   useEffect(() => {
-    if (isExistingForm && dataLoaded && aadhaarData?.isVerified) {
+    if (isExistingForm && dataLoaded && aadharVerification?.isVerified) {
       setCurrentStep("success");
       onChange("aadharVerified", true);
     }
-  }, [isExistingForm, dataLoaded, aadhaarData]);
+  }, [isExistingForm, dataLoaded, aadharVerification]);
 
-  // Update the aadhaarInput field based on verification method selection
-  const getUpdatedAadhaarField = () => {
-    const aadhaarField = aadharFields.find(
+  // Update the aadharInput field based on verification method selection
+  const getUpdatedAadharField = () => {
+    const aadharField = aadharFields.find(
       (field) => field.name === "aadharNo",
     );
 
-    if (aadhaarField && formData["verificationMethod"]) {
+    if (aadharField && formData["verificationMethod"]) {
+      console.log("formData", formData);
       return {
-        ...aadhaarField,
+        ...aadharField,
         label:
           formData["verificationMethod"] === "virtual-id"
             ? "Virtual ID (VID)"
-            : "Aadhaar Number",
+            : "Aadhar Number",
         placeholder:
           formData["verificationMethod"] === "virtual-id"
             ? "Enter 16-digit Virtual ID"
-            : "Enter 12-digit Aadhaar number",
+            : "Enter 12-digit Aadhar number",
         validation: {
           pattern:
             formData["verificationMethod"] === "virtual-id"
@@ -86,18 +99,18 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
           message:
             formData["verificationMethod"] === "virtual-id"
               ? "Virtual ID must be 16 digits"
-              : "Aadhaar number must be 12 digits",
+              : "Aadhar number must be 12 digits",
         },
       };
     }
 
-    return aadhaarField;
+    return aadharField;
   };
 
-  // Update fields with the dynamic aadhaar field
+  // Update fields with the dynamic aadhar field
   const updatedAadharFields = aadharFields.map((field) => {
     if (field.name === "aadharNo") {
-      return getUpdatedAadhaarField() || field;
+      return getUpdatedAadharField() || field;
     }
     return field;
   });
@@ -118,10 +131,10 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
   };
 
   const handleProceedToVerify = () => {
-    const aadhaarNumber = formData["aadharNo"];
+    const aadharNumber = formData["aadharNo"];
     const consent = formData["consentCheckbox"];
 
-    if (!aadhaarNumber || !consent) {
+    if (!aadharNumber || !consent) {
       alert("Please fill all required fields and give consent");
       return;
     }
@@ -130,15 +143,14 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
     const verificationMethod = formData["verificationMethod"];
     const isValidInput =
       verificationMethod === "virtual-id"
-        ? /^\d{16}$/.test(aadhaarNumber)
-        : /^\d{12}$/.test(aadhaarNumber);
+        ? /^\d{16}$/.test(aadharNumber)
+        : /^\d{12}$/.test(aadharNumber);
 
     if (!isValidInput) {
       alert(
-        `Please enter a valid ${
-          verificationMethod === "virtual-id"
-            ? "16-digit Virtual ID"
-            : "12-digit Aadhaar number"
+        `Please enter a valid ${verificationMethod === "virtual-id"
+          ? "16-digit Virtual ID"
+          : "12-digit Aadhar number"
         }`,
       );
       return;
@@ -148,16 +160,31 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
     setOtpExpiry(STATIC_OTP_CONFIG.EXPIRY_TIME);
   };
 
-  const handleOtpSubmit = () => {
+  const handleOtpSubmit = async () => {
     if (otpValue === STATIC_OTP_CONFIG.OTP_VALUE) {
-      setCurrentStep("success");
-      onChange("aadharVerified", true);
-      onChange("validAadhar", true);
-      onChange("isVerified", true);
+      try {
+        // Call the Aadhar submit API here
+        await actions.submitAadhar({
+          formId: formState.formId,
+          aadharNo: formData.aadharNo,
+          validAadhar: true,
+        });
+
+        // Update local state
+        setCurrentStep("success");
+        onChange("aadharVerified", true);
+        onChange("validAadhar", true);
+        onChange("isVerified", true);
+
+        toast.success("Aadhar verified successfully");
+      } catch (error: any) {
+        setOtpError(error?.response?.data?.message || "Failed to verify Aadhar");
+      }
     } else {
       setOtpError("Invalid OTP. Please try again.");
     }
   };
+
 
   const handleChangeNumber = () => {
     setCurrentStep("method-selection");
@@ -171,18 +198,14 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
     setOtpError("");
   };
 
-  const handleContinueToPayment = () => {
-    // Mark this step as completed and move to next
-    onChange("aadharVerified", true);
-    onChange("validAadhar", true);
-    onChange("isVerified", true);
-    onNext();
+  const handleContinueToSummary = () => {
+    if (onNext) onNext();
   };
 
   const renderMethodSelection = () => (
     <Box>
       <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
-        Aadhaar Verification
+        Aadhar Verification
       </Typography>
 
       {updatedAadharFields.map((field) => (
@@ -200,13 +223,13 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
           Important Instructions:
         </Typography>
         <Typography variant="body2" component="div">
-          • Your Aadhaar information will be used only for verification purposes
+          • Your Aadhar information will be used only for verification purposes
           <br />
           • Data will be processed as per UIDAI guidelines and privacy norms
           <br />
           • No biometric or demographic data will be stored permanently
           <br />• Virtual ID (VID) is a 16-digit temporary number mapped to your
-          Aadhaar
+          Aadhar
         </Typography>
       </Alert>
 
@@ -228,7 +251,7 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
   const renderOtpVerification = () => (
     <Box>
       <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-        Aadhaar Verification
+        Aadhar Verification
       </Typography>
 
       <Alert severity="success" sx={{ mb: 3 }}>
@@ -243,7 +266,7 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
         with your{" "}
         {formData["verificationMethod"] === "virtual-id"
           ? "Virtual ID"
-          : "Aadhaar"}
+          : "Aadhar"}
         : {STATIC_OTP_CONFIG.MOBILE_NUMBER}
       </Typography>
 
@@ -315,7 +338,7 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
       <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
         {formData["verificationMethod"] === "virtual-id"
           ? "Virtual ID"
-          : "Aadhaar"}{" "}
+          : "Aadhar"}{" "}
         Verification Successful!
       </Typography>
 
@@ -323,7 +346,7 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
         <Typography variant="body2" color="text.secondary">
           {formData["verificationMethod"] === "virtual-id"
             ? "Virtual ID"
-            : "Aadhaar No"}
+            : "Aadhar No"}
         </Typography>
         <Typography variant="h6" sx={{ fontWeight: 600 }}>
           {formData["verificationMethod"] === "virtual-id"
@@ -336,7 +359,7 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
         Your{" "}
         {formData["verificationMethod"] === "virtual-id"
           ? "Virtual ID"
-          : "Aadhaar"}{" "}
+          : "Aadhar"}{" "}
         details have been successfully verified. You can now continue with your
         application for registration with the Maharashtra Council of
         Homoeopathy.
@@ -346,8 +369,8 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
         <Button variant="outlined" onClick={onPrevious}>
           Save & Continue Later
         </Button>
-        <Button variant="contained" onClick={handleContinueToPayment}>
-          Continue to Payment
+        <Button variant="contained" onClick={handleContinueToSummary}>
+          Continue to summary
         </Button>
       </Box>
     </Box>

@@ -9,7 +9,7 @@ import {
   setSameAddresses,
   updateQualification,
   updateDocument,
-  updateAadhaarVerification,
+  updateAadharVerification,
   updatePayment,
   setStep,
   setFormId,
@@ -17,6 +17,7 @@ import {
   setFinalConsent,
   clearError,
   resetForm,
+  setSubmittedSteps,
 
   // Selectors
   selectFormState,
@@ -26,7 +27,7 @@ import {
   selectAddresses,
   selectQualification,
   selectDocuments,
-  selectAadhaarVerification,
+  selectAadharVerification,
   selectPayment,
   selectFormId,
   selectLoading,
@@ -42,17 +43,18 @@ import {
   submitAddress,
   submitQualification,
   submitDocuments,
-  submitAadhaar,
+  submitAadhar,
   createPayment,
   submitApplication,
   fetchPersonalInfo,
   fetchAddress,
   fetchQualification,
   fetchDocuments,
-  fetchAadhaar,
+  fetchAadhar,
   fetchPayment,
   loadExistingFormData,
   loadExistingFormDataSelective,
+  verifyPayment,
 } from "@/store/actions/newRegAction";
 
 import { STEP_CONFIG } from "@/store/slices/formSlice";
@@ -67,7 +69,7 @@ interface UseFormReturn {
   addresses: ReturnType<typeof selectAddresses>;
   qualification: ReturnType<typeof selectQualification>;
   documents: ReturnType<typeof selectDocuments>;
-  aadhaarVerification: ReturnType<typeof selectAadhaarVerification>;
+  aadharVerification: ReturnType<typeof selectAadharVerification>;
   payment: ReturnType<typeof selectPayment>;
   formId: string;
   loading: boolean;
@@ -90,7 +92,7 @@ interface UseFormReturn {
     fetchAddress: (formId: string) => Promise<any>;
     fetchQualification: (formId: string) => Promise<any>;
     fetchDocuments: (formId: string) => Promise<any>;
-    fetchAadhaar: (formId: string) => Promise<any>;
+    fetchAadhar: (formId: string) => Promise<any>;
     fetchPayment: (formId: string) => Promise<any>;
     submitPersonalInfo: (
       data: Parameters<typeof submitPersonalInfo>[0],
@@ -102,8 +104,9 @@ interface UseFormReturn {
     submitDocuments: (
       data: Parameters<typeof submitDocuments>[0],
     ) => Promise<any>;
-    submitAadhaar: (data: Parameters<typeof submitAadhaar>[0]) => Promise<any>;
+    submitAadhar: (data: Parameters<typeof submitAadhar>[0]) => Promise<any>;
     createPayment: (data: Parameters<typeof createPayment>[0]) => Promise<any>;
+    verifyPayment: (data: Parameters<typeof verifyPayment>[0]) => Promise<any>;
     submitApplication: (
       data: Parameters<typeof submitApplication>[0],
     ) => Promise<any>;
@@ -125,8 +128,8 @@ interface UseFormReturn {
       data: Parameters<typeof updateQualification>[0],
     ) => void;
     updateDocument: (data: Parameters<typeof updateDocument>[0]) => void;
-    updateAadhaarVerification: (
-      data: Parameters<typeof updateAadhaarVerification>[0],
+    updateAadharVerification: (
+      data: Parameters<typeof updateAadharVerification>[0],
     ) => void;
     updatePayment: (data: Parameters<typeof updatePayment>[0]) => void;
     setStep: (data: Parameters<typeof setStep>[0]) => void;
@@ -135,6 +138,7 @@ interface UseFormReturn {
     setFinalConsent: (consent: boolean) => void;
     clearError: () => void;
     resetForm: () => void;
+    setSubmittedSteps: (steps: string[]) => void;
   };
 
   // Utility functions
@@ -176,7 +180,7 @@ export const useNewReg = (): UseFormReturn => {
   const addresses = useAppSelector(selectAddresses);
   const qualification = useAppSelector(selectQualification);
   const documents = useAppSelector(selectDocuments);
-  const aadhaarVerification = useAppSelector(selectAadhaarVerification);
+  const aadharVerification = useAppSelector(selectAadharVerification);
   const payment = useAppSelector(selectPayment);
   const formId = useAppSelector(selectFormId);
   const loading = useAppSelector(selectLoading);
@@ -225,8 +229,8 @@ export const useNewReg = (): UseFormReturn => {
       [dispatch],
     ),
 
-    fetchAadhaar: useCallback(
-      (formId: string) => dispatch(fetchAadhaar(formId)).unwrap(),
+    fetchAadhar: useCallback(
+      (formId: string) => dispatch(fetchAadhar(formId)).unwrap(),
       [dispatch],
     ),
 
@@ -259,16 +263,22 @@ export const useNewReg = (): UseFormReturn => {
       [dispatch],
     ),
 
-    submitAadhaar: useCallback(
-      (data: Parameters<typeof submitAadhaar>[0]) =>
-        dispatch(submitAadhaar(data)).unwrap(),
+    submitAadhar: useCallback(
+      (data: Parameters<typeof submitAadhar>[0]) =>
+        dispatch(submitAadhar(data)).unwrap(),
       [dispatch],
     ),
 
     createPayment: useCallback(
       (data: Parameters<typeof createPayment>[0]) =>
         dispatch(createPayment(data)).unwrap(),
-      [dispatch],
+      [dispatch]
+    ),
+
+    verifyPayment: useCallback(
+      (data: Parameters<typeof verifyPayment>[0]) =>
+        dispatch(verifyPayment(data)).unwrap(),
+      [dispatch]
     ),
 
     submitApplication: useCallback(
@@ -315,9 +325,9 @@ export const useNewReg = (): UseFormReturn => {
       [dispatch],
     ),
 
-    updateAadhaarVerification: useCallback(
-      (data: Parameters<typeof updateAadhaarVerification>[0]) =>
-        dispatch(updateAadhaarVerification(data)),
+    updateAadharVerification: useCallback(
+      (data: Parameters<typeof updateAadharVerification>[0]) =>
+        dispatch(updateAadharVerification(data)),
       [dispatch],
     ),
 
@@ -347,11 +357,18 @@ export const useNewReg = (): UseFormReturn => {
     clearError: useCallback(() => dispatch(clearError()), [dispatch]),
 
     resetForm: useCallback(() => dispatch(resetForm()), [dispatch]),
+
+    setSubmittedSteps: useCallback(
+      (data: Parameters<typeof setSubmittedSteps>[0]) =>
+        dispatch(setSubmittedSteps(data)),
+      [dispatch],
+    )
   };
 
   // Define utility functions with proper dependencies
   const isStepCompleted = useCallback(
     (stepId: string): boolean => {
+      // console.log("submittedSteps", submittedSteps);
       switch (stepId) {
         case "personal-information":
           return !!(
@@ -427,20 +444,31 @@ export const useNewReg = (): UseFormReturn => {
           );
 
         case "upload-documents":
-          return !!(
-            documents.tenthMarksheet ||
-            documents.twelfthMarksheet ||
-            documents.photo ||
-            documents.signature ||
-            documents.idProof
-          );
+          // Check required fields: either has File object or has uploaded URL
+          const requiredDocs = [
+            "tenthMarksheet",
+          ] as const;
+
+          return requiredDocs.every((docKey) => {
+            // Check if document exists in documents state OR in uploadedUrls
+            const hasFile = !!documents[docKey];
+            const hasUploadedUrl = !!formState.uploadedUrls?.[docKey];
+            return hasFile || hasUploadedUrl;
+          });
 
         case "aadhar-verification":
+          // If already verified, we don't need to validate the full number
+          // API returns masked aadhar like "********1234"
+          // const hasValidAadhar = aadharVerification.aadharNo && (
+          //   /^\d{12}$/.test(aadharVerification.aadharNo) ||           // New unmasked number
+          //   /^\*{8}\d{4}$/.test(aadharVerification.aadharNo) ||       // Masked number pattern
+          //   /^\d{4}\s\d{4}\s\d{4}$/.test(aadharVerification.aadharNo) // Formatted number
+          // );
+
           return !!(
-            aadhaarVerification.isVerified &&
-            aadhaarVerification.consentCheckbox &&
-            aadhaarVerification.aadharNo &&
-            /^\d{12}$/.test(aadhaarVerification.aadharNo)
+            aadharVerification.isVerified &&
+            aadharVerification.validAadhar
+            // hasValidAadhar 
           );
 
         case "application-summary":
@@ -464,7 +492,7 @@ export const useNewReg = (): UseFormReturn => {
       addresses,
       qualification,
       documents,
-      aadhaarVerification,
+      aadharVerification,
       payment,
       submitSuccess,
       formState.finalConsent,
@@ -486,9 +514,9 @@ export const useNewReg = (): UseFormReturn => {
         // Use .includes() for array instead of .has() for Set
         const isStepSubmitted = submittedSteps.includes(prevStepId);
 
-        console.log(
-          `Step ${prevStepId}: valid=${isStepValid}, submitted=${isStepSubmitted}`,
-        );
+        // console.log(
+        //   `Step ${prevStepId}: valid=${isStepValid}, submitted=${isStepSubmitted}`,
+        // );
 
         if (!isStepValid || !isStepSubmitted) {
           return false;
@@ -507,6 +535,7 @@ export const useNewReg = (): UseFormReturn => {
   }, [currentStep]);
 
   const getNextStepId = useCallback((): string | null => {
+    console.log("getNextStepId called with currentStep:", currentStep);
     const currentStepConfig = Object.values(STEP_CONFIG).find(
       (config) => config.id === currentStep,
     );
@@ -552,7 +581,8 @@ export const useNewReg = (): UseFormReturn => {
 
   const goToNextStep = useCallback(() => {
     const nextStepId = getNextStepId();
-    if (nextStepId && canNavigateToStep(nextStepId)) {
+    console.log(`nextStepId: ${nextStepId}`);
+    if (nextStepId) {
       const stepConfig = STEP_CONFIG[nextStepId as keyof typeof STEP_CONFIG];
       if (stepConfig) {
         mutations.setStep({
@@ -561,7 +591,7 @@ export const useNewReg = (): UseFormReturn => {
         });
       }
     }
-  }, [mutations.setStep, getNextStepId, canNavigateToStep]);
+  }, [mutations.setStep, getNextStepId]);
 
   const goToPreviousStep = useCallback(() => {
     const previousStepId = getPreviousStepId();
@@ -601,7 +631,7 @@ export const useNewReg = (): UseFormReturn => {
     addresses,
     qualification,
     documents,
-    aadhaarVerification,
+    aadharVerification,
     payment,
     formId,
     loading,

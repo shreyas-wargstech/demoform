@@ -26,7 +26,7 @@ interface AccordionStepProps {
   step: AccordionStepType;
   formData: { [key: string]: any };
   onChange: (fieldName: string, value: any) => void;
-  onStepComplete: (stepId: string, isComplete: boolean) => void;
+  // onStepComplete: (stepId: string, isComplete: boolean) => void;
   isCompleted: boolean;
   isAccessible: boolean;
   isExpanded: boolean;
@@ -43,7 +43,7 @@ const AccordionStep: React.FC<AccordionStepProps> = ({
   step,
   formData,
   onChange,
-  onStepComplete,
+  // onStepComplete,
   isCompleted,
   isAccessible,
   isExpanded,
@@ -64,21 +64,21 @@ const AccordionStep: React.FC<AccordionStepProps> = ({
     }
   };
 
-  const validateStep = (): boolean => {
-    const requiredFields = step.fields.filter((field) => field.required);
-    return requiredFields.every((field) => {
-      const value = formData[field.name];
-      if (field.type === "checkbox") {
-        return value === true;
-      }
-      return value !== undefined && value !== null && value !== "";
-    });
-  };
+  // const validateStep = (): boolean => {
+  //   const requiredFields = step.fields.filter((field) => field.required);
+  //   return requiredFields.every((field) => {
+  //     const value = formData[field.name];
+  //     if (field.type === "checkbox") {
+  //       return value === true;
+  //     }
+  //     return value !== undefined && value !== null && value !== "";
+  //   });
+  // };
 
-  useEffect(() => {
-    const isValid = validateStep();
-    onStepComplete(step.id, isValid);
-  }, [formData, step.fields, step.id, onStepComplete]);
+  // useEffect(() => {
+  //   const isValid = validateStep();
+  //   // onStepComplete(step.id, isValid);
+  // }, [formData, step.fields, step.id, onStepComplete]);
 
   const renderSpecialSection = () => {
     switch (step.id) {
@@ -159,7 +159,7 @@ const AccordionStep: React.FC<AccordionStepProps> = ({
         {/* Two-column grid layout for form fields */}
         <Grid container spacing={3}>
           {step.fields.map((field, index) => (
-            <Grid size={{ xs: 12, md: 6 }} key={field.name}> 
+            <Grid size={{ xs: 12, md: 6 }} key={field.name}>
               <FieldRenderer
                 field={field}
                 value={formData[field.name]}

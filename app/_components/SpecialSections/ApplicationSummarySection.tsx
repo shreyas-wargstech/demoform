@@ -35,8 +35,8 @@ const ApplicationSummarySection: React.FC<ApplicationSummarySectionProps> = ({
     (state) => state.applicationForm?.qualification,
   );
   const documents = useAppSelector((state) => state.applicationForm?.documents);
-  const aadhaar = useAppSelector(
-    (state) => state.applicationForm?.aadhaarVerification,
+  const aadhar = useAppSelector(
+    (state) => state.applicationForm?.aadharVerification,
   );
 
   const formatDate = (dateString: string) => {
@@ -55,7 +55,7 @@ const ApplicationSummarySection: React.FC<ApplicationSummarySectionProps> = ({
         return <School color="primary" />;
       case "documents":
         return <CloudUpload color="primary" />;
-      case "aadhaar":
+      case "aadhar":
         return <CreditCard color="primary" />;
       default:
         return <CheckCircle color="primary" />;
@@ -188,7 +188,7 @@ const ApplicationSummarySection: React.FC<ApplicationSummarySectionProps> = ({
       uploaded: documents?.signature || formData["signature"],
     },
     {
-      name: "ID Proof (Aadhaar)",
+      name: "ID Proof (Aadhar)",
       uploaded: documents?.idProof || formData["idProof"],
     },
     {
@@ -291,12 +291,12 @@ const ApplicationSummarySection: React.FC<ApplicationSummarySectionProps> = ({
         </Box>
       </Paper>
 
-      {/* Aadhaar Verification */}
+      {/* Aadhar Verification */}
       <Paper elevation={0} sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'grey.300' }}>
         <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-          {getSectionIcon("aadhaar")}
+          {getSectionIcon("aadhar")}
           <Typography variant="h6" sx={{ ml: 1, fontWeight: 600 }}>
-            Aadhaar Verification
+            Aadhar Verification
           </Typography>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -304,10 +304,10 @@ const ApplicationSummarySection: React.FC<ApplicationSummarySectionProps> = ({
             Verification Status:
           </Typography>
           <Chip
-            label={aadhaar?.isVerified ? "Verified" : "Pending"}
-            color={aadhaar?.isVerified ? "success" : "warning"}
+            label={aadhar?.isVerified ? "Verified" : "Pending"}
+            color={aadhar?.isVerified ? "success" : "warning"}
             size="small"
-            icon={aadhaar?.isVerified ? <CheckCircle /> : undefined}
+            icon={aadhar?.isVerified ? <CheckCircle /> : undefined}
           />
         </Box>
       </Paper>

@@ -15,7 +15,7 @@ import AccordionStep from "./accordinanStep";
 import StepProgressBar from "../progressBar";
 import ApplicationSuccessScreen from "./success";
 import useNewReg from "@/store/hooks/useNewReg";
-import { Documents } from "@/store/slices/formSlice";
+import { Documents, STEP_CONFIG } from "@/store/slices/formSlice";
 import { toast } from "sonner";
 
 interface FormData {
@@ -35,13 +35,14 @@ const DynamicForm: React.FC = () => {
     addresses,
     qualification,
     documents,
-    aadhaarVerification,
+    aadharVerification,
     payment,
     loading,
     error,
     actions,
     mutations,
     utils,
+    submittedSteps
   } = useNewReg();
 
   const [stepErrors, setStepErrors] = useState<StepErrors>({});
@@ -60,12 +61,11 @@ const DynamicForm: React.FC = () => {
       try {
         console.log("Initializing form...");
         const response = await actions.startForm();
+        console.log("nextStep during initialization", response);
 
         if (response?.isExisting && response?.formId) {
           const nextStepNum =
-            typeof response.nextStep === "number"
-              ? response.nextStep
-              : parseInt(response.nextStep || "1");
+            typeof response.nextStep === 'number' ? response.nextStep : (response.nextStep === "ready_to_submit" ? 8 : parseInt(response.nextStep));
 
           console.log(`Loading existing form. NextStep: ${nextStepNum}`);
           await actions.loadExistingFormDataSelective(
@@ -101,8 +101,8 @@ const DynamicForm: React.FC = () => {
         mutations.setSameAddresses(value);
       } else if (fieldName in qualification) {
         mutations.updateQualification({ [fieldName]: value });
-      } else if (fieldName in aadhaarVerification) {
-        mutations.updateAadhaarVerification({ [fieldName]: value });
+      } else if (fieldName in aadharVerification) {
+        mutations.updateAadharVerification({ [fieldName]: value });
       } else if (fieldName in payment) {
         mutations.updatePayment({ [fieldName]: value });
       } else if (fieldName in documents) {
@@ -117,7 +117,7 @@ const DynamicForm: React.FC = () => {
     [
       personalInfo,
       qualification,
-      aadhaarVerification,
+      aadharVerification,
       payment,
       documents,
       currentStep,
@@ -136,6 +136,7 @@ const DynamicForm: React.FC = () => {
   const handleNext = useCallback(
     async (currentStepId: string) => {
       if (submittingStep) return;
+      
 
       // VALIDATE FIRST
       if (!utils.isStepCompleted(currentStepId)) {
@@ -144,7 +145,7 @@ const DynamicForm: React.FC = () => {
           ...prev,
           [currentStepId]: errorMsg,
         }));
-        toast.error(errorMsg);
+        toast.error(errorMsg + currentStepId );
         return;
       }
 
@@ -153,7 +154,6 @@ const DynamicForm: React.FC = () => {
       mutations.clearError();
 
       try {
-        console.log(`Submitting step: ${currentStepId}`);
 
         switch (currentStepId) {
           case "personal-information":
@@ -190,25 +190,17 @@ const DynamicForm: React.FC = () => {
             break;
 
           case "aadhar-verification":
-            await actions.submitAadhaar({
-              formId: formState.formId,
-              aadharNo: "123412341234",
-              validAadhar: aadhaarVerification.validAadhar,
-            });
-            toast.success("Aadhaar verified successfully");
-            break;
-
-          case "payment":
-            await actions.createPayment({
-              formId: formState.formId,
-              applicationType: formState.applicationType,
-              payment_name: "Medical License Application Fee",
-            });
-            toast.success("Payment processed successfully");
+            if (!submittedSteps.includes("aadhar-verification")) {
+              mutations.setSubmittedSteps([...submittedSteps, "aadhar-verification"]);
+            }
+            toast.success("Aadhar verified successfully");
             break;
 
           case "application-summary":
-            // Just navigate to next step for summary
+            if (!submittedSteps.includes("application-summary")) {
+              mutations.setSubmittedSteps([...submittedSteps, "application-summary"]);
+            }
+            toast.success("Application reviewed successfully");
             break;
 
           default:
@@ -216,10 +208,21 @@ const DynamicForm: React.FC = () => {
         }
 
         // SUCCESS: API call succeeded - step navigation is handled by Redux
-        console.log(
-          `Step ${currentStepId} submitted successfully - moving to next step`,
-        );
-        utils.goToNextStep();
+        // console.log(
+        //   `Step ${currentStepId} submitted successfully - moving to next step`,
+        // );
+        // await new Promise(resolve => setTimeout(resolve, 1000));
+        const nextStepId = utils.getNextStepId();
+        console.log(`nextStepId: ${nextStepId}`);
+        if (nextStepId) {
+          const stepConfig = STEP_CONFIG[nextStepId as keyof typeof STEP_CONFIG];
+          if (stepConfig) {
+            mutations.setStep({
+              stepId: nextStepId,
+              stepNumber: stepConfig.stepNumber,
+            });
+          }
+        }
       } catch (error: any) {
         // FAILURE: API call failed - prevent navigation
         console.error("Error submitting step:", error);
@@ -244,7 +247,7 @@ const DynamicForm: React.FC = () => {
       addresses,
       qualification,
       documents,
-      aadhaarVerification,
+      aadharVerification,
       utils,
       mutations,
       submittingStep,
@@ -332,7 +335,7 @@ const DynamicForm: React.FC = () => {
     isSameAddress: addresses.isSameAddress,
     ...qualification,
     ...documents,
-    ...aadhaarVerification,
+    ...aadharVerification,
     ...payment,
   };
 
@@ -363,7 +366,7 @@ const DynamicForm: React.FC = () => {
               step={step}
               formData={formData}
               onChange={handleFormDataChange}
-              onStepComplete={handleStepComplete}
+              // onStepComplete={handleStepComplete}
               isCompleted={utils.isStepCompleted(step.id)}
               isAccessible={isStepAccessible(index)}
               isExpanded={formState.stepId === step.id}

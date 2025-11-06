@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { FormField } from "../../../../../../Data/data";
+import { FormField } from "../data";
 import TextInput from "../FormFields/TextInput";
 import SelectField from "../FormFields/SelectField";
 import FileUpload from "../FormFields/FileUpload";
