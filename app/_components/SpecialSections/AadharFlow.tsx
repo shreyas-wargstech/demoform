@@ -280,7 +280,7 @@ const AadharFlow: React.FC<AadharFlowProps> = ({
 
       <TextField
         fullWidth
-        placeholder="Enter 4-digit OTP"
+        // placeholder="Enter 4-digit OTP"
         value={otpValue}
         onChange={(e) => {
           setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 4));

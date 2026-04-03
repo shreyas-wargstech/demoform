@@ -283,8 +283,8 @@ const ApplicationSummarySection: React.FC<ApplicationSummarySectionProps> = ({
             <Chip
               key={index}
               label={doc.name}
-              color={doc.uploaded ? "success" : "default"}
-              icon={doc.uploaded ? <CheckCircle /> : undefined}
+              color={doc.uploaded ? "primary" : "default"}
+              icon={doc.uploaded ? <CheckCircle className="text-white" /> : undefined}
               size="small"
             />
           ))}
@@ -305,9 +305,9 @@ const ApplicationSummarySection: React.FC<ApplicationSummarySectionProps> = ({
           </Typography>
           <Chip
             label={aadhar?.isVerified ? "Verified" : "Pending"}
-            color={aadhar?.isVerified ? "success" : "warning"}
+            color={aadhar?.isVerified ? "primary" : "warning"}
             size="small"
-            icon={aadhar?.isVerified ? <CheckCircle /> : undefined}
+            icon={aadhar?.isVerified ? <CheckCircle className="text-white" /> : undefined}
           />
         </Box>
       </Paper>

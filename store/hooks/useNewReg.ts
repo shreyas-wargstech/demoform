@@ -35,6 +35,8 @@ import {
   selectFinalConsent,
   selectApplicationType,
   selectSubmittedSteps,
+  selectSubmittedAt,
+  selectStatus
 } from "@/store/slices/formSlice";
 
 import {
@@ -76,6 +78,9 @@ interface UseFormReturn {
   error: string | null;
   finalConsent: boolean;
   applicationType: string;
+  submittedAt: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'INITIATED';
+  // existingApplicationId: string | null;
 
   // ADD THIS LINE
   submittedSteps: string[];
@@ -187,6 +192,8 @@ export const useNewReg = (): UseFormReturn => {
   const error = useAppSelector(selectError);
   const finalConsent = useAppSelector(selectFinalConsent);
   const applicationType = useAppSelector(selectApplicationType);
+  const submittedAt = useAppSelector(selectSubmittedAt);
+  const status = useAppSelector(selectStatus);
 
   // Async actions
   const actions = {
@@ -638,6 +645,8 @@ export const useNewReg = (): UseFormReturn => {
     error,
     finalConsent,
     applicationType,
+    submittedAt,
+    status,
 
     submittedSteps,
 

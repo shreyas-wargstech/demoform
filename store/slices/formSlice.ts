@@ -39,6 +39,8 @@ export interface StartFormResponse {
   nextStep: string;
   isExisting: boolean;
   practitionerId?: string;
+  error?: string;
+  existingApplicationId?: string;
 }
 
 export interface DocumentUploadResponse {
@@ -178,6 +180,9 @@ export interface FormState {
   error: string | null;
   submitSuccess: boolean;
   finalConsent: boolean;
+  submittedAt: string | null;
+  existingApplicationId: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'INITIATED'
 }
 
 // Update initial state
@@ -272,6 +277,9 @@ const initialState: FormState = {
   loading: false,
   error: null,
   uploadedUrls: {},
+  submittedAt: null,
+  existingApplicationId: null,
+  status: 'INITIATED'
 };
 
 export const STEP_CONFIG = {
@@ -448,6 +456,8 @@ export const formSlice = createSlice({
       // In formSlice.ts - Update the startForm.fulfilled case
       .addCase(startForm.fulfilled, (state, action) => {
         state.loading = false;
+        const data = action.payload;
+
         state.formId = action.payload.formId;
         state.practitionerId = action.payload.practitionerId || "";
         state.applicationType = action.payload.applicationType;
@@ -493,6 +503,12 @@ export const formSlice = createSlice({
       .addCase(startForm.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to start form";
+        const errorData = action.payload as any;
+        if (errorData.existingApplicationId) {
+          state.status = errorData.status;
+          state.existingApplicationId = errorData.existingApplicationId;
+          state.submittedAt = errorData.submittedAt;
+        }
       });
 
     // Load all existing form data
@@ -1010,7 +1026,7 @@ export const formSlice = createSlice({
         state.payment.status = action.payload.status;
         state.payment.paymentId = action.payload.paymentId;
         state.payment.razorpay_payment_id = action.payload.paymentId;
-        if(action.payload.nextStep === 'You can now submit your application') {
+        if (action.payload.nextStep === 'You can now submit your application') {
           state.stepId = 'submit';
         }
 
@@ -1019,16 +1035,16 @@ export const formSlice = createSlice({
           if (!state.submittedSteps.includes('payment')) {
             state.submittedSteps.push('payment');
           }
-          
+
         }
       })
       .addCase(verifyPayment.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to verify payment';
         const errorData = action.payload as any;
-        if(errorData.error === "Payment already verified") {
+        if (errorData.error === "Payment already verified") {
           state.payment.status = 'SUCCESSFUL';
-          if(!state.submittedSteps.includes('payment')) {
+          if (!state.submittedSteps.includes('payment')) {
             state.submittedSteps.push('payment');
           }
         } else {
@@ -1053,6 +1069,9 @@ export const formSlice = createSlice({
             state.submittedSteps.push("submit");
           }
           state.submitSuccess = true;
+          state.submittedAt = action.payload.submittedAt;
+          state.formId = action.payload.formId;
+          state.status = action.payload.status || 'PENDING';
         }
       })
       .addCase(submitApplication.rejected, (state, action) => {
@@ -1112,6 +1131,9 @@ export const selectDataLoaded = (state: RootState) =>
   state.applicationForm.dataLoaded;
 export const selectSubmittedSteps = (state: RootState) =>
   state.applicationForm.submittedSteps;
-
+export const selectSubmittedAt = (state: RootState) =>
+  state.applicationForm.submittedAt;
+export const selectStatus = (state: RootState) =>
+  state.applicationForm.status;
 // ADD THIS LINE - Default export
 export default formSlice.reducer;

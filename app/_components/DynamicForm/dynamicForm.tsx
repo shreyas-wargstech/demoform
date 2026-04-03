@@ -13,9 +13,9 @@ import {
 import { formStepsData } from "../data";
 import AccordionStep from "./accordinanStep";
 import StepProgressBar from "../progressBar";
-import ApplicationSuccessScreen from "./success";
+import ApplicationSuccessScreen, { ApplicationData } from "./success";
 import useNewReg from "@/store/hooks/useNewReg";
-import { Documents, STEP_CONFIG } from "@/store/slices/formSlice";
+import { Documents, setSubmitSuccess, setSubmittedSteps, STEP_CONFIG } from "@/store/slices/formSlice";
 import { toast } from "sonner";
 
 interface FormData {
@@ -42,12 +42,27 @@ const DynamicForm: React.FC = () => {
     actions,
     mutations,
     utils,
-    submittedSteps
+    submittedSteps,
+    submittedAt,
+    applicationType,
+    status,
   } = useNewReg();
 
   const [stepErrors, setStepErrors] = useState<StepErrors>({});
   const [submittingStep, setSubmittingStep] = useState<string | null>(null);
   const hasInitialized = useRef(false);
+
+  const applicationData : ApplicationData = {
+    submissionDate: submittedAt,
+      // : new Date().toLocaleDateString('en-GB', { 
+      //     day: '2-digit', 
+      //     month: 'short', 
+      //     year: 'numeric' 
+      //   }),
+    applicationType: applicationType,
+    referenceNumber: formState.existingApplicationId || `MCH-REF_${Date.now()}`,
+    status: status === 'PENDING' ? "Pending" : (status === 'APPROVED' ? "Approved" : "Rejected"),
+  };
 
   // Initialize form
   useEffect(() => {
@@ -63,6 +78,7 @@ const DynamicForm: React.FC = () => {
         const response = await actions.startForm();
         console.log("nextStep during initialization", response);
 
+
         if (response?.isExisting && response?.formId) {
           const nextStepNum =
             typeof response.nextStep === 'number' ? response.nextStep : (response.nextStep === "ready_to_submit" ? 8 : parseInt(response.nextStep));
@@ -74,9 +90,17 @@ const DynamicForm: React.FC = () => {
           );
         }
         toast.success("Form initialized successfully");
-      } catch (error) {
-        console.error("Failed to initialize form:", error);
-        toast.error("Failed to initialize form");
+      } catch (error: any) {
+
+        if (error.error === "You already have a New_Registration application that has been submitted") {
+          setSubmittedSteps(["personal-information", "address", "qualifications", "upload-documents", "aadhar-verification", "application-summary", "payment", "submit"]);
+          mutations.setSubmitSuccess(true);
+          toast.warning(error.error);
+          console.log("You already have a New_Registration application that has been submitted", "submitSuccess", submitSuccess);
+        } else {
+          console.error("Failed to initialize form:", error);
+          toast.error("Failed to initialize form");
+        }
         hasInitialized.current = false;
       }
     };
@@ -136,7 +160,7 @@ const DynamicForm: React.FC = () => {
   const handleNext = useCallback(
     async (currentStepId: string) => {
       if (submittingStep) return;
-      
+
 
       // VALIDATE FIRST
       if (!utils.isStepCompleted(currentStepId)) {
@@ -145,7 +169,7 @@ const DynamicForm: React.FC = () => {
           ...prev,
           [currentStepId]: errorMsg,
         }));
-        toast.error(errorMsg + currentStepId );
+        toast.error(errorMsg + currentStepId);
         return;
       }
 
@@ -324,8 +348,12 @@ const DynamicForm: React.FC = () => {
     );
   }
 
+  
   if (submitSuccess) {
-    return <ApplicationSuccessScreen onBackToHome={handleBackToHome} />;
+    return <ApplicationSuccessScreen
+      applicationData={applicationData}
+      onBackToHome={handleBackToHome}
+    />;
   }
 
   const formData: FormData = {

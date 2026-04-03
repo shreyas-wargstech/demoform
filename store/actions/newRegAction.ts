@@ -51,11 +51,19 @@ export interface VerifyPaymentResponse {
 // Async thunks
 export const startForm = createAsyncThunk(
   "form/start",
-  async (applicationType: string = "New_Registration") => {
-    const response = await api.post("/practitioners/forms/start", {
-      applicationType,
-    });
-    return response.data as Promise<StartFormResponse>;
+  async (applicationType: string = "New_Registration", { rejectWithValue }) => {
+    try {
+      const response = await api.post("/practitioners/forms/start", {
+        applicationType,
+      });
+      return response.data as Promise<StartFormResponse>;
+    } catch (error: any) {
+      if(error.response) {
+        console.log("startForm error response", error.response.data);
+        return rejectWithValue(error.response.data);
+      }
+      return rejectWithValue(error);
+    }
   },
 );
 
@@ -232,8 +240,8 @@ export const verifyPayment = createAsyncThunk(
     try {
       const response = await api.post('/payments/form-payment/verify', data);
       return response.data as Promise<VerifyPaymentResponse>;
-    } catch (error:any) {
-      if(error.response) {
+    } catch (error: any) {
+      if (error.response) {
         return rejectWithValue(error.response.data);
       }
       return rejectWithValue({ error: error.message });
